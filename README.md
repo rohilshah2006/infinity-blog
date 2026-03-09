@@ -2,8 +2,6 @@
 
 A premium, highly customizable blogging engine built with **Next.js 14 (App Router)**, **Tailwind CSS**, and **MongoDB**. Designed for an immersive, distraction-free reading experience with gorgeous aesthetics and typography.
 
-![Infinity Blog](frontend/public/next.svg)
-
 ## ✨ Features
 
 - **Immersive Reading Experience**: Distraction-free, full-screen reading modal with dynamic typography switching mapping directly to your post config.
