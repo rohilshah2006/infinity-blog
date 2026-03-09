@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Allura&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #f9fafb;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes rainbowPulse {
+  0% {
+    color: red;
+  }
+
+  20% {
+    color: orange;
+  }
+
+  40% {
+    color: yellow;
+  }
+
+  60% {
+    color: green;
+  }
+
+  80% {
+    color: blue;
+  }
+
+  100% {
+    color: purple;
+  }
+}
+
+.animate-rainbowPulse {
+  animation: rainbowPulse 3s linear infinite;
+}

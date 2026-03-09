@@ -1,0 +1,19 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific ignores
+Instructions + Skills/
+
+# Next.js files (already ignored in frontend/.gitignore but adding here just in case)
+node_modules/
+.env*
+.next/
+out/
+build/
+.vercel
