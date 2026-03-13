@@ -23,6 +23,8 @@ interface BlogCardProps {
   onLike?: () => void;
   onRead?: () => void;
   onDelete: () => void;
+  onEdit?: () => void;
+  _id: string;
 }
 
 export default function BlogCard({
@@ -47,17 +49,31 @@ export default function BlogCard({
   onLike,
   onRead,
   onDelete,
+  onEdit,
+  _id,
 }: BlogCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
-  const [localLikes, setLocalLikes] = useState(likes);
-  const [isLiking, setIsLiking] = useState(false);
+  const [localLikes, setLocalLikes] = React.useState(likes);
+  const [isLiking, setIsLiking] = React.useState(false);
+  const [isCopied, setIsCopied] = React.useState(false);
 
   const handleLike = () => {
     if (isLiking) return;
     setIsLiking(true);
-    setLocalLikes(prev => prev + 1);
-    if (onLike) onLike();
-    setTimeout(() => setIsLiking(false), 1000);
+    try {
+      setLocalLikes(prev => prev + 1);
+      if (onLike) onLike();
+    } finally {
+      setTimeout(() => setIsLiking(false), 1000);
+    }
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/#blog-${_id}`;
+    navigator.clipboard.writeText(url);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   const handleDelete = () => {
@@ -70,14 +86,14 @@ export default function BlogCard({
   const appliedFont = contentFont === "Arial" ? "var(--font-lora)" : contentFont;
 
   // Layout resolution
-  let containerClasses = "group flex h-full transform transition-all duration-500 ease-out overflow-hidden relative";
+  let containerClasses = "group flex h-full transform overflow-hidden relative transition-opacity transition-transform duration-500 ease-out";
   
   if (layoutStyle === "classic") {
-    containerClasses += " rounded-2xl shadow-subtle hover:shadow-subtle-hover border border-brand-lightgray hover:-translate-y-1.5";
+    containerClasses += " rounded-2xl shadow-subtle hover:shadow-subtle-hover border border-brand-lightgray transition-shadow transition-transform hover:-translate-y-1.5";
   } else if (layoutStyle === "modern") {
-    containerClasses += " rounded-[2.5rem] shadow-lg hover:shadow-2xl hover:-translate-y-2 border-none ring-1 ring-black/5";
+    containerClasses += " rounded-[2.5rem] shadow-lg hover:shadow-2xl transition-shadow transition-transform hover:-translate-y-2 border-none ring-1 ring-black/5";
   } else if (layoutStyle === "minimal") {
-    containerClasses += " rounded-none border-b-2 border-transparent hover:border-brand-dark shadow-none hover:-translate-y-1 bg-transparent";
+    containerClasses += " rounded-none border-b-2 border-transparent hover:border-brand-dark shadow-none transition-transform hover:-translate-y-1 bg-transparent";
   }
 
   // Cover image position
@@ -123,13 +139,29 @@ export default function BlogCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-80 mix-blend-multiply pointer-events-none"></div>
         )}
         
-        <button
-          onClick={handleDelete}
-          className="absolute top-4 right-4 w-10 h-10 bg-brand-surface/90 backdrop-blur-md shadow-sm rounded-full flex items-center justify-center text-brand-mid hover:text-red-500 hover:bg-brand-surface transition-all duration-300 z-20 opacity-0 group-hover:opacity-100 hover:scale-110"
-          aria-label="Delete Blog Post"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-        </button>
+        <div className="absolute top-4 right-4 flex gap-2 z-20 opacity-0 group-hover:opacity-100 transition-all duration-300">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onEdit) onEdit();
+            }}
+            className="w-10 h-10 bg-brand-surface/90 backdrop-blur-md shadow-sm rounded-full flex items-center justify-center text-brand-mid hover:text-brand-orange hover:bg-brand-surface transition-all duration-300 hover:scale-110"
+            aria-label="Edit Blog Post"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+          </button>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete();
+            }}
+            className="w-10 h-10 bg-brand-surface/90 backdrop-blur-md shadow-sm rounded-full flex items-center justify-center text-brand-mid hover:text-red-500 hover:bg-brand-surface transition-all duration-300 hover:scale-110"
+            aria-label="Delete Blog Post"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          </button>
+        </div>
         
         {/* Floating Category Badge */}
         {category && layoutStyle !== "minimal" && (
@@ -160,12 +192,11 @@ export default function BlogCard({
         </h2>
         
         {/* Excerpt or Content Snippet */}
-        <p
+        <div
           className={`text-brand-dark/70 text-base leading-relaxed flex-grow line-clamp-3 mb-6 ${layoutStyle === "minimal" ? "text-[1.1rem] font-light" : ""}`}
           style={{ fontFamily: appliedFont }}
-        >
-          {excerpt || content}
-        </p>
+          dangerouslySetInnerHTML={{ __html: excerpt || content }}
+        />
 
         {/* Tags */}
         {tags && tags.length > 0 && (
@@ -217,6 +248,23 @@ export default function BlogCard({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
               </svg>
               <span className="text-xs font-poppins font-semibold">{localLikes}</span>
+            </button>
+
+            {/* Share Button */}
+            <button 
+              onClick={handleShare}
+              className={`flex items-center justify-center w-9 h-9 rounded-full transition-all duration-300 ${isCopied ? 'text-green-500 scale-110 bg-green-500/10' : 'text-brand-mid hover:text-brand-orange hover:bg-white/5'}`}
+              title="Copy link to story"
+            >
+              {isCopied ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 100-2.684 3 3 0 000 2.684zm0 12.684a3 3 0 100-2.684 3 3 0 000 2.684z" />
+                </svg>
+              )}
             </button>
 
             {/* Read Button */}

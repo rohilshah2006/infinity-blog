@@ -15,6 +15,7 @@ const SettingsSchema = new mongoose.Schema(
         footerTwitter: { type: String, default: "" },
         footerGithub: { type: String, default: "" },
         footerLinkedin: { type: String, default: "" },
+        themePreset: { type: String, default: "infinity" },
     },
     { timestamps: true }
 );

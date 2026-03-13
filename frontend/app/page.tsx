@@ -2,7 +2,28 @@
 
 import { useState, useEffect } from "react";
 import BlogCard from "./components/BlogCard"; 
-import { getBlogs, createBlog, deleteBlog, getSettings, updateSettings, likeBlog } from "./actions";
+import { SortableItem } from "./components/SortableItem";
+import { RichTextEditor } from "./components/RichTextEditor";
+import { getBlogs, createBlog, deleteBlog, getSettings, updateSettings, likeBlog, updateBlog, updateBlogOrder } from "./actions";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 
 interface Blog {
   _id: string; 
@@ -24,6 +45,7 @@ interface Blog {
   entranceAnimation: string;
   likes: number;
   titleColor: string;
+  updatedAt?: string;
 }
 
 interface SiteSettings {
@@ -39,13 +61,46 @@ interface SiteSettings {
   footerTwitter: string;
   footerGithub: string;
   footerLinkedin: string;
+  themePreset: string;
 }
+
+const THEME_PRESETS = {
+  infinity: {
+    name: "Infinity (Original)",
+    background: "#0a0a0a",
+    accent: "#f59e0b",
+    heroText: "#f9fafb",
+    font: "var(--font-poppins)"
+  },
+  cyberpunk: {
+    name: "Cyberpunk Neon",
+    background: "#050510",
+    accent: "#ff00ff",
+    heroText: "#00ffff",
+    font: "var(--font-poppins)"
+  },
+  minimalist: {
+    name: "Nordic Light",
+    background: "#f3f4f6",
+    accent: "#111827",
+    heroText: "#111827",
+    font: "var(--font-lora)"
+  },
+  forest: {
+    name: "Deep Forest",
+    background: "#061a10",
+    accent: "#d4af37",
+    heroText: "#ecfdf5",
+    font: "var(--font-lora)"
+  },
+};
 
 export default function Home() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const [formData, setFormData] = useState({
     title: "",
@@ -68,6 +123,8 @@ export default function Home() {
   });
   
   const [selectedBlog, setSelectedBlog] = useState<Blog | null>(null);
+  const [isEditingBlog, setIsEditingBlog] = useState(false);
+  const [editingBlogId, setEditingBlogId] = useState<string | null>(null);
   
   // Dedicated state for editing global settings
   const [settingsData, setSettingsData] = useState<SiteSettings | null>(null);
@@ -99,34 +156,33 @@ export default function Home() {
     loadData();
   }, []);
 
+const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const toggleForm = () => {
-    if (!showForm && settings) {
+    if (!showForm && !isEditingBlog && settings) {
         setFormData(prev => ({
           ...prev,
           author: prev.author || settings.defaultAuthorName,
           avatarUrl: prev.avatarUrl || settings.defaultAvatarUrl
         }));
     }
+    if (showForm) {
+      setIsEditingBlog(false);
+      resetFormData();
+    }
     setShowForm((prev) => !prev);
   };
 
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!settingsData) return;
-    
-    await updateSettings(settingsData);
-    setSettings(settingsData);
-    setShowSettings(false);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    await createBlog(formData);
-
-    const updatedBlogs = await getBlogs(Date.now());
-    setBlogs(updatedBlogs as unknown as Blog[]);
-
+  const resetFormData = () => {
     setFormData({
       title: "",
       content: "",
@@ -146,6 +202,99 @@ export default function Home() {
       isFeatured: false,
       entranceAnimation: "fadeInUp",
     });
+  };
+
+  const handleEdit = (blog: Blog) => {
+    setFormData({
+      title: blog.title,
+      content: blog.content,
+      author: blog.author,
+      backgroundColor: blog.backgroundColor,
+      titleColor: blog.titleColor,
+      image: blog.image,
+      contentFont: blog.contentFont,
+      tags: blog.tags || [],
+      category: blog.category || "Thinking",
+      excerpt: blog.excerpt || "",
+      readingTime: blog.readingTime || 5,
+      textAlignment: blog.textAlignment || "left",
+      layoutStyle: blog.layoutStyle || "classic",
+      avatarUrl: blog.avatarUrl || "",
+      coverImagePosition: blog.coverImagePosition || "top",
+      isFeatured: blog.isFeatured || false,
+      entranceAnimation: blog.entranceAnimation || "fadeInUp",
+    });
+    setEditingBlogId(blog._id);
+    setIsEditingBlog(true);
+    setShowForm(true);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = blogs.findIndex((i) => i._id === active.id);
+      const newIndex = blogs.findIndex((i) => i._id === over.id);
+      const newArray = arrayMove(blogs, oldIndex, newIndex);
+      
+      // Update local state first
+      setBlogs(newArray);
+      
+      // Persist order to DB in background
+      const updates = newArray.map((blog, index) => ({
+        _id: blog._id,
+        order: index,
+      }));
+      await updateBlogOrder(updates);
+    }
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settingsData) return;
+    
+    await updateSettings(settingsData);
+    setSettings(settingsData);
+    setShowSettings(false);
+  };
+
+  const handleApplyPreset = (presetKey: string) => {
+    const preset = (THEME_PRESETS as any)[presetKey];
+    if (preset && settingsData) {
+      setSettingsData({
+        ...settingsData,
+        themePreset: presetKey,
+        siteBackground: preset.background,
+        primaryAccent: preset.accent,
+        heroTitleColor: preset.heroText,
+        heroFont: preset.font,
+      });
+    }
+  };
+
+  const filteredBlogs = blogs.filter(blog => 
+    blog.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    blog.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    blog.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    blog.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    blog.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (isEditingBlog && editingBlogId) {
+      await updateBlog(editingBlogId, formData);
+      setIsEditingBlog(false);
+      setEditingBlogId(null);
+    } else {
+      await createBlog(formData);
+    }
+
+    const updatedBlogs = await getBlogs(Date.now());
+    setBlogs(updatedBlogs as unknown as Blog[]);
+
+    resetFormData();
     setShowForm(false);
   };
 
@@ -219,6 +368,22 @@ export default function Home() {
           </div>
           
           <div className="flex flex-col sm:flex-row items-center gap-4 relative z-10 w-full md:w-auto">
+            {/* Real-time Search Input */}
+            <div className="relative w-full sm:w-64 md:w-80 group">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <svg className="h-4 w-4 text-brand-mid group-focus-within:text-brand-orange transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search stories, tags, authors..."
+                className="block w-full pl-10 pr-4 py-3 bg-black/40 border border-brand-lightgray rounded-xl text-sm font-poppins text-brand-dark placeholder-brand-mid/50 outline-none focus:border-brand-orange/50 focus:ring-4 focus:ring-brand-orange/5 transition-all duration-300"
+              />
+            </div>
+
             <div className="relative group w-full sm:w-auto">
               {!showForm && (
                 <div 
@@ -257,7 +422,9 @@ export default function Home() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
               
-              <h2 className="text-3xl font-poppins font-semibold mb-8 text-brand-dark">Draft your thought</h2>
+              <h2 className="text-3xl font-poppins font-semibold mb-8 text-brand-dark">
+                {isEditingBlog ? "Refine your thought" : "Draft your thought"}
+              </h2>
               
               <form onSubmit={handleSubmit} className="space-y-6">
                 
@@ -346,13 +513,10 @@ export default function Home() {
                     </div>
                   </div>
                   
-                  <textarea
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  <RichTextEditor
+                    content={formData.content}
+                    onChange={(val) => setFormData({ ...formData, content: val })}
                     placeholder="Write your story..."
-                    className="w-full px-4 py-4 bg-black/50 border border-brand-lightgray rounded focus:border-brand-orange focus:ring-1 focus:ring-brand-orange text-brand-dark placeholder-brand-mid transition-colors duration-200 outline-none min-h-[200px] resize-y"
-                    style={{ fontFamily: formData.contentFont === "Arial" ? "var(--font-lora)" : formData.contentFont }}
-                    required
                   />
                 </div>
 
@@ -567,7 +731,7 @@ export default function Home() {
                       type="submit"
                       className="relative w-full bg-[#0a0a0a] text-white font-poppins font-medium py-3.5 px-4 rounded transition-all duration-300 hover:scale-[1.02]"
                     >
-                      Publish Post
+                      {isEditingBlog ? "Save Changes" : "Publish Post"}
                     </button>
                   </div>
                 </div>
@@ -582,29 +746,47 @@ export default function Home() {
             <p className="text-brand-mid font-lora text-lg italic">No stories published yet. Be the first.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10 auto-rows-fr">
-            {blogs.map((blog, index) => {
-              const animClass = animationClasses[blog.entranceAnimation] || animationClasses.fadeInUp;
-              return (
-              <div
-                id={`blog-${blog._id}`}
-                key={blog._id}
-                className={`transition-opacity duration-300 origin-center ${animClass} ${blog.isFeatured ? 'md:col-span-2' : ''}`}
-                style={{
-                  animationDelay: `${index * 0.1}s`,
-                }}
-              >
-                <BlogCard
-                  {...blog}
-                  titleColor={blog.titleColor || "#f9fafb"}
-                  onLike={() => handleLikeBlog(blog._id)}
-                  onDelete={() => handleDelete(blog._id)}
-                  onRead={() => setSelectedBlog(blog)}
-                />
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToWindowEdges]}
+          >
+            <SortableContext 
+              items={filteredBlogs.map((b) => b._id)} 
+              strategy={rectSortingStrategy}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10 auto-rows-fr">
+                {filteredBlogs.map((blog, index) => {
+                  const animClass = animationClasses[blog.entranceAnimation] || animationClasses.fadeInUp;
+                  // Use a combined key that includes updatedAt to force re-animation when changes are saved
+                  const itemKey = `${blog._id}-${blog.updatedAt || '0'}`;
+                  
+                  return (
+                    <SortableItem key={itemKey} id={blog._id} isFeatured={blog.isFeatured}>
+                      <div
+                        key={itemKey} // Internal key also helps force re-triggering of the animation
+                        id={`blog-${blog._id}`}
+                        className={`origin-center h-full ${animClass}`}
+                        style={{
+                          animationDelay: `${index * 0.1}s`,
+                        }}
+                      >
+                        <BlogCard
+                          {...blog}
+                          titleColor={blog.titleColor || "#f9fafb"}
+                          onLike={() => handleLikeBlog(blog._id)}
+                          onDelete={() => handleDelete(blog._id)}
+                          onRead={() => setSelectedBlog(blog)}
+                          onEdit={() => handleEdit(blog)}
+                        />
+                      </div>
+                    </SortableItem>
+                  );
+                })}
               </div>
-              );
-            })}
-          </div>
+            </SortableContext>
+          </DndContext>
         )}
 
         {/* Global Settings Button (Floating Bottom Right) */}
@@ -638,6 +820,31 @@ export default function Home() {
               
               <form onSubmit={handleSaveSettings} className="space-y-8">
                 
+                {/* Theme Presets */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-poppins font-medium text-brand-orange border-b border-brand-lightgray pb-2">Global Theme Presets</h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {Object.entries(THEME_PRESETS).map(([key, theme]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => handleApplyPreset(key)}
+                        className={`p-3 rounded-xl border text-left transition-all duration-300 group ${
+                          settingsData.themePreset === key ? "border-brand-orange bg-brand-orange/5" : "border-brand-lightgray hover:border-brand-mid bg-black/30"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.accent }}></div>
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.background }}></div>
+                        </div>
+                        <span className={`text-xs font-poppins font-medium block transition-colors ${settingsData.themePreset === key ? "text-brand-orange" : "text-brand-mid group-hover:text-brand-dark"}`}>
+                          {theme.name}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* 1. Hero Identity */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-poppins font-medium text-brand-orange border-b border-brand-lightgray pb-2">1. The Hero Section</h3>
@@ -775,15 +982,15 @@ export default function Home() {
                     {selectedBlog.title}
                   </h1>
                   
-                  <div className="flex items-center gap-4 text-brand-mid text-sm font-poppins font-medium">
+                  <div className="flex items-center gap-4 text-brand-mid font-poppins text-sm mb-8">
                     <div className="flex items-center gap-2">
-                      {selectedBlog.avatarUrl ? (
-                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={selectedBlog.avatarUrl} alt="author" className="w-8 h-8 rounded-full shadow-sm" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-brand-orange/20 text-brand-orange border-brand-orange/50 flex items-center justify-center border">{selectedBlog.author.charAt(0)}</div>
-                      )}
-                      <span className="text-white">{selectedBlog.author}</span>
+                        {selectedBlog.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={selectedBlog.avatarUrl} alt="author" className="w-8 h-8 rounded-full shadow-sm" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-brand-orange/20 text-brand-orange border-brand-orange/50 flex items-center justify-center border text-[10px]">{selectedBlog.author.charAt(0)}</div>
+                        )}
+                        <span className="text-white">{selectedBlog.author}</span>
                     </div>
                     {selectedBlog.category && (
                       <>
@@ -804,16 +1011,12 @@ export default function Home() {
                     fontFamily: selectedBlog.contentFont === 'Arial' ? 'var(--font-lora)' : selectedBlog.contentFont,
                     textAlign: selectedBlog.textAlignment as any || 'left'
                   }}
-                >
-                  {selectedBlog.content.split('\n').map((paragraph, idx) => (
-                    <p key={idx} className="mb-6">{paragraph}</p>
-                  ))}
-                </div>
+                  dangerouslySetInnerHTML={{ __html: selectedBlog.content }}
+                />
               </div>
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

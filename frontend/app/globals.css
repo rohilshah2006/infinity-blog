@@ -44,3 +44,77 @@ body {
 .animate-rainbowPulse {
   animation: rainbowPulse 3s linear infinite;
 }
+
+/* Entrance Animations */
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes zoomIn {
+  0% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideRight {
+  0% { opacity: 0; transform: translateX(-24px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes flip {
+  0% { opacity: 0; transform: rotateX(-90deg); }
+  100% { opacity: 1; transform: rotateX(0); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.animate-fadeInUp { animation: fadeInUp 0.6s ease-out both !important; }
+.animate-zoomIn { animation: zoomIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) both !important; }
+.animate-slideRight { animation: slideRight 0.6s ease-out both !important; }
+.animate-flip { animation: flip 0.8s ease-out both !important; }
+.animate-fadeIn { animation: fadeIn 0.3s ease-out both !important; }
+
+/* Tiptap / Prose Styles */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #a1a1aa;
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror {
+  outline: none !important;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--brand-accent);
+  padding-left: 1rem;
+  font-style: italic;
+  color: #a1a1aa;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+}
+
+.ProseMirror h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}

@@ -50,7 +50,7 @@ export async function getBlogs(timestamp?: number) {
     console.log("--- Executing getBlogs ---");
     await connectDB();
     console.log("Connected to DB, finding blogs...");
-    const blogs = await Blog.find().sort({ createdAt: -1 }).lean();
+    const blogs = await Blog.find().sort({ order: 1, createdAt: -1 }).lean();
     console.log(`Found ${blogs.length} blogs in DB.`);
 
     // Force strict JSON serialization to strip BSON ObjectId and Date classes
@@ -144,6 +144,38 @@ export async function likeBlog(id: string) {
     return { success: true };
   } catch (error) {
     console.error("Error liking blog:", error);
+    return { success: false };
+  }
+}
+
+// 5. Update a blog
+export async function updateBlog(id: string, data: any) {
+  try {
+    await connectDB();
+    await Blog.findByIdAndUpdate(id, { $set: data });
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating blog:", error);
+    return { success: false };
+  }
+}
+
+// 6. Update blog order
+export async function updateBlogOrder(updates: { _id: string; order: number }[]) {
+  try {
+    await connectDB();
+    const bulkOps = updates.map((update) => ({
+      updateOne: {
+        filter: { _id: update._id },
+        update: { $set: { order: update.order } },
+      },
+    }));
+    await Blog.bulkWrite(bulkOps);
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating blog order:", error);
     return { success: false };
   }
 }

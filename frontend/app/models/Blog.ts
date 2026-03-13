@@ -39,6 +39,7 @@ const BlogSchema: Schema = new Schema(
     likes: { type: Number, default: 0 },
     isFeatured: { type: Boolean, default: false },
     entranceAnimation: { type: String, default: "fadeInUp" },
+    order: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
