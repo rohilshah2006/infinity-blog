@@ -44,7 +44,6 @@ export default function BlogCard({
   coverImagePosition = "top",
   likes = 0,
   isFeatured = false,
-  entranceAnimation = "fadeInUp",
   titleColor = "#171717",
   onLike,
   onRead,

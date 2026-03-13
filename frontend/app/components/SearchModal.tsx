@@ -104,7 +104,7 @@ export function SearchModal({ isOpen, onClose, items, onSelect }: SearchModalPro
             </div>
           ) : query ? (
             <div className="p-12 text-center">
-              <p className="text-brand-mid font-poppins">No thoughts found for "{query}"</p>
+              <p className="text-brand-mid font-poppins">No thoughts found for &quot;{query}&quot;</p>
             </div>
           ) : (
             <div className="p-8 text-center text-xs text-brand-mid font-poppins uppercase tracking-widest opacity-50">

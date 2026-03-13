@@ -26,6 +26,7 @@ export async function getSettings() {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function updateSettings(data: any) {
   try {
     await connectDB();
@@ -47,7 +48,7 @@ export async function updateSettings(data: any) {
 // 1. Fetch all blogs
 export async function getBlogs(timestamp?: number) {
   try {
-    console.log("--- Executing getBlogs ---");
+    console.log("--- Executing getBlogs ---", timestamp);
     await connectDB();
     console.log("Connected to DB, finding blogs...");
     const blogs = await Blog.find().sort({ order: 1, createdAt: -1 }).lean();
@@ -149,6 +150,7 @@ export async function likeBlog(id: string) {
 }
 
 // 5. Update a blog
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function updateBlog(id: string, data: any) {
   try {
     await connectDB();

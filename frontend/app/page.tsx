@@ -18,11 +18,8 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
   rectSortingStrategy,
-  useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 
 interface Blog {
@@ -259,6 +256,7 @@ const sensors = useSensors(
   };
 
   const handleApplyPreset = (presetKey: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const preset = (THEME_PRESETS as any)[presetKey];
     if (preset && settingsData) {
       setSettingsData({
@@ -344,6 +342,7 @@ const sensors = useSensors(
       className="min-h-screen text-brand-dark px-4 sm:px-6 lg:px-8 py-12 md:py-20 font-lora transition-colors duration-500"
       style={{
         backgroundColor: settings?.siteBackground || "#0a0a0a",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ["--brand-accent" as any]: settings?.primaryAccent || "#f59e0b"
       }}
     >
@@ -815,7 +814,7 @@ const sensors = useSensors(
               
               <div className="flex flex-col mb-8">
                 <h2 className="text-3xl font-poppins font-semibold text-brand-dark">Site Configuration</h2>
-                <p className="text-brand-mid mt-2 font-poppins text-sm">Customize your blog's identity globally. No code changes required.</p>
+                <p className="text-brand-mid mt-2 font-poppins text-sm">Customize your blog&apos;s identity globally. No code changes required.</p>
               </div>
               
               <form onSubmit={handleSaveSettings} className="space-y-8">
@@ -1009,7 +1008,8 @@ const sensors = useSensors(
                   className="prose prose-lg prose-invert text-white/80 max-w-3xl mx-auto leading-relaxed"
                   style={{ 
                     fontFamily: selectedBlog.contentFont === 'Arial' ? 'var(--font-lora)' : selectedBlog.contentFont,
-                    textAlign: selectedBlog.textAlignment as any || 'left'
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    textAlign: (selectedBlog.textAlignment as any) || 'left'
                   }}
                   dangerouslySetInnerHTML={{ __html: selectedBlog.content }}
                 />
